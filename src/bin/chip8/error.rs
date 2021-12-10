@@ -1,31 +1,34 @@
 use std::error;
 use std::fmt;
-use std::num;
 
 #[derive(Debug)]
 pub enum Error {
-    InvalidColor(String),
-    InvalidSeed(String),
-    ParseInt(num::ParseIntError),
+    SdlStr(String),
+    SdlErr(sdl2::IntegerOrSdlError),
+    SdlWin(sdl2::video::WindowBuildError),
+    UnknownMapping(char),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::InvalidColor(color) => {
-                write!(f, "invalid color '{}', expected format is #RRGGBB", color)
-            }
-            Self::InvalidSeed(seed) => {
-                write!(f, "invalid seed '{}', expected format is 0xXXXX", seed)
-            }
-            Self::ParseInt(err) => err.fmt(f),
+            Self::SdlStr(msg) => write!(f, "{}", msg),
+            Self::SdlErr(err) => err.fmt(f),
+            Self::SdlWin(err) => err.fmt(f),
+            Self::UnknownMapping(c) => write!(f, "{}", c),
         }
     }
 }
 
-impl From<num::ParseIntError> for Error {
-    fn from(err: num::ParseIntError) -> Self {
-        Self::ParseInt(err)
+impl From<sdl2::IntegerOrSdlError> for Error {
+    fn from(err: sdl2::IntegerOrSdlError) -> Self {
+        Self::SdlErr(err)
+    }
+}
+
+impl From<sdl2::video::WindowBuildError> for Error {
+    fn from(err: sdl2::video::WindowBuildError) -> Self {
+        Self::SdlWin(err)
     }
 }
 
