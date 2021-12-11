@@ -3,7 +3,6 @@ use clap::Parser;
 use options::Options;
 use window::WindowBuilder;
 
-mod error;
 mod options;
 mod window;
 
