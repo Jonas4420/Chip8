@@ -1,51 +1,60 @@
 use std::path::Path;
 
+use crate::bus::Bus;
+use crate::cpu::Cpu;
+use crate::error::Error;
+use crate::ram::Ram;
+use crate::timer::Timer;
+
 #[derive(Debug)]
 pub struct Chip8 {
-    width: usize,
-    height: usize,
-    st: u8,
+    cpu: Cpu,
+    ram: Ram,
+    dt: Timer,
+    st: Timer,
+    dim: (usize, usize),
     mappings: [char; 16],
 }
 
-impl Chip8 {
-    pub fn load_rom(rom: &Path) -> Self {
+impl<'a> Chip8 {
+    pub fn new() -> Self {
         Self {
-            width: 64,
-            height: 32,
-            st: 0,
+            cpu: Default::default(),
+            ram: Default::default(),
+            dt: Default::default(),
+            st: Default::default(),
+            dim: (64, 32),
             mappings: [
                 'x', '1', '2', '3', 'q', 'w', 'e', 'a', 's', 'd', 'z', 'c', '4', 'r', 'f', 'v',
             ],
         }
     }
 
-    pub fn clock(&mut self, screen: &mut [bool], pad: &[bool], audio: &mut bool) -> Result<(), String> {
-        for x in 0..self.width {
-            for y in 0..self.height {
-                screen[(y * self.width) + x] = (x == y) ^ pad[1];
-            }
-        }
+    pub fn load_rom(&mut self, rom: &Path) -> Result<(), Error> {
+        Ok(())
+    }
 
-        if pad[3] {
-            return Err("OOPS".into());
-        }
+    pub fn clock(&mut self, screen: &mut [bool], pad: &[bool], buzz: &mut bool) -> Result<(), Error> {
+        let mut bus = Bus {
+            screen: screen,
+            pad: pad,
+            ram: &mut self.ram,
+            dt: &mut self.dt,
+            st: &mut self.st,
+        };
 
-        self.st = if pad[2] { 1 } else { 0 };
-        *audio = self.st > 0;
+        self.cpu.cycle(&mut bus)?;
+
+        *buzz = self.st.get() > 0;
 
         Ok(())
     }
 
     pub fn get_screen_size(&self) -> (usize, usize) {
-        (self.width, self.height)
+        self.dim
     }
 
     pub fn get_key_mapping(&self) -> &[char] {
         &self.mappings
-    }
-
-    pub fn get_sound_timer(&self) -> u8 {
-        self.st
     }
 }
