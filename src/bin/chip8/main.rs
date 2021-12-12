@@ -5,6 +5,7 @@ use window::Window;
 
 use chip8::Chip8;
 
+mod error;
 mod options;
 mod window;
 

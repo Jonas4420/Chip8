@@ -1,7 +1,7 @@
 use sdl2::audio::{AudioCallback, AudioDevice, AudioSpecDesired, AudioStatus};
 use sdl2::Sdl;
 
-use super::error::WindowError;
+use crate::error;
 
 pub const NOTE_PITCH: f32 = 440.0;
 
@@ -17,7 +17,7 @@ struct SquareWave {
 }
 
 impl AudioEngine {
-    pub fn new(sdl: &Sdl) -> Result<Self, WindowError> {
+    pub fn new(sdl: &Sdl) -> Result<Self, error::Error> {
         let audio = sdl.audio()?;
 
         let spec = AudioSpecDesired {
@@ -35,7 +35,7 @@ impl AudioEngine {
         Ok(AudioEngine { audio, beep: false })
     }
 
-    pub fn render(&mut self) -> Result<(), WindowError> {
+    pub fn render(&mut self) -> Result<(), error::Error> {
         if self.beep {
             self.play();
         } else {

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use sdl2::keyboard::Scancode;
 
-use super::error::WindowError;
+use crate::error;
 
 pub struct KeyboardEngine {
     map: HashMap<Scancode, usize>,
@@ -10,7 +10,7 @@ pub struct KeyboardEngine {
 }
 
 impl KeyboardEngine {
-    pub fn new(keys: &[char]) -> Result<Self, WindowError> {
+    pub fn new(keys: &[char]) -> Result<Self, error::Error> {
         Ok(Self {
             map: keys
                 .iter()
@@ -37,7 +37,7 @@ impl KeyboardEngine {
         &self.buffer
     }
 
-    fn get_scancode(c: char) -> Result<Scancode, WindowError> {
+    fn get_scancode(c: char) -> Result<Scancode, error::Error> {
         match c.to_ascii_lowercase() {
             '1' => Ok(Scancode::Num1),
             '2' => Ok(Scancode::Num2),
@@ -75,7 +75,7 @@ impl KeyboardEngine {
             'x' => Ok(Scancode::X),
             'y' => Ok(Scancode::Y),
             'z' => Ok(Scancode::Z),
-            _ => Err(WindowError::UnknownMapping(c)),
+            _ => Err(error::Error::UnknownMapping(c)),
         }
     }
 }

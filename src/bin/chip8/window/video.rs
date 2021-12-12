@@ -4,7 +4,7 @@ use sdl2::pixels::Color;
 use sdl2::render::WindowCanvas;
 use sdl2::Sdl;
 
-use super::error::WindowError;
+use crate::error;
 
 pub struct VideoEngine {
     canvas: WindowCanvas,
@@ -26,7 +26,7 @@ impl VideoEngine {
         fps: u32,
         bg: Color,
         fg: Color,
-    ) -> Result<Self, WindowError> {
+    ) -> Result<Self, error::Error> {
         let video = sdl.video()?;
 
         let mut canvas = video
@@ -40,11 +40,11 @@ impl VideoEngine {
 
         let buffer_sz = width
             .checked_mul(height)
-            .ok_or(WindowError::InvalidScreenSize(width, height))?;
+            .ok_or(error::Error::InvalidScreenSize((width, height)))?;
 
         let fps = Duration::from_secs(1)
             .checked_div(fps)
-            .ok_or(WindowError::InvalidFPS(fps))?;
+            .ok_or(error::Error::InvalidFramerate(fps))?;
 
         Ok(Self {
             canvas,
@@ -58,7 +58,7 @@ impl VideoEngine {
         })
     }
 
-    pub fn render(&mut self, now: Instant) -> Result<(), WindowError> {
+    pub fn render(&mut self, now: Instant) -> Result<(), error::Error> {
         let render = match self.last {
             Some(prev) => now.duration_since(prev) >= self.fps,
             None => true,
@@ -76,7 +76,7 @@ impl VideoEngine {
         &mut self.buffer
     }
 
-    fn update(&mut self) -> Result<(), WindowError> {
+    fn update(&mut self) -> Result<(), error::Error> {
         self.canvas.set_draw_color(self.bg);
         self.canvas.clear();
 
@@ -95,9 +95,9 @@ impl VideoEngine {
         Ok(())
     }
 
-    fn scale_size(x: usize, scale: u8) -> Result<u32, WindowError> {
+    fn scale_size(x: usize, scale: u8) -> Result<u32, error::Error> {
         x.checked_mul(scale.into())
             .and_then(|x_scaled| x_scaled.try_into().ok())
-            .ok_or(WindowError::InvalidScale(x, scale))
+            .ok_or(error::Error::InvalidScale(x, scale))
     }
 }

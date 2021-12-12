@@ -5,11 +5,10 @@ use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::EventPump;
 
+use crate::error;
 use crate::options;
-use error::WindowError;
 
 mod audio;
-mod error;
 mod keyboard;
 mod video;
 
@@ -27,7 +26,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(dimensions: (usize, usize), keys: &[char], options: &options::Options) -> Result<Self, WindowError> {
+    pub fn new(dimensions: (usize, usize), keys: &[char], options: &options::Options) -> Result<Self, error::Error> {
         let sdl = sdl2::init()?;
 
         // Get options
@@ -72,7 +71,7 @@ impl Window {
         Ok(())
     }
 
-    fn display(&mut self) -> Result<(), WindowError> {
+    fn display(&mut self) -> Result<(), error::Error> {
         self.video.render(Instant::now())?;
 
         for event in self.events.wait_iter() {
