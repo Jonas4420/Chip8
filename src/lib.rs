@@ -1,8 +1,3 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}
+mod chip8;
+
+pub use chip8::Chip8;

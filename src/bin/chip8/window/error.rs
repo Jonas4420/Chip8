@@ -1,12 +1,17 @@
 use std::error;
 use std::fmt;
 
+// TODO: refactor
+
 #[derive(Debug)]
 pub enum WindowError {
     SdlStr(String),
     SdlErr(sdl2::IntegerOrSdlError),
     SdlWin(sdl2::video::WindowBuildError),
     UnknownMapping(char),
+    InvalidScreenSize(usize, usize),
+    InvalidScale(usize, u8),
+    InvalidFPS(u32),
 }
 
 impl fmt::Display for WindowError {
@@ -16,6 +21,15 @@ impl fmt::Display for WindowError {
             Self::SdlErr(err) => err.fmt(f),
             Self::SdlWin(err) => err.fmt(f),
             Self::UnknownMapping(c) => write!(f, "{}", c),
+            Self::InvalidScreenSize(width, height) => {
+                write!(f, "{}{}", width, height)
+            }
+            Self::InvalidScale(x, scale) => {
+                write!(f, "{}{}", x, scale)
+            }
+            Self::InvalidFPS(fps) => {
+                write!(f, "{}", fps)
+            }
         }
     }
 }

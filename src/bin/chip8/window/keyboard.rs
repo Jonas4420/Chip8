@@ -16,7 +16,7 @@ impl KeyboardEngine {
                 .iter()
                 .enumerate()
                 .map(|(i, c)| Self::get_scancode(*c).map(|key| (key, i)))
-                .collect::<Result<HashMap<_, _>, _>>()?,
+                .collect::<Result<_, _>>()?,
             buffer: vec![false; keys.len()],
         })
     }
@@ -33,7 +33,7 @@ impl KeyboardEngine {
         }
     }
 
-    pub fn get_buffer(&self) -> &[bool] {
+    pub fn get_memory(&self) -> &[bool] {
         &self.buffer
     }
 

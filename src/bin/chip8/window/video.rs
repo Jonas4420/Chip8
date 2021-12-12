@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use sdl2::pixels::Color;
 use sdl2::render::WindowCanvas;
 use sdl2::Sdl;
@@ -6,11 +8,13 @@ use super::error::WindowError;
 
 pub struct VideoEngine {
     canvas: WindowCanvas,
+    buffer: Vec<bool>,
     width: usize,
     height: usize,
+    fps: Duration,
+    last: Option<Instant>,
     bg: Color,
     fg: Color,
-    buffer: Vec<bool>,
 }
 
 impl VideoEngine {
@@ -19,44 +23,60 @@ impl VideoEngine {
         title: &str,
         (width, height): (usize, usize),
         scale: u8,
+        fps: u32,
         bg: Color,
         fg: Color,
     ) -> Result<Self, WindowError> {
         let video = sdl.video()?;
 
-        let window = video
-            .window(title, Self::scale_dim(width, scale)?, Self::scale_dim(height, scale)?)
+        let mut canvas = video
+            .window(title, Self::scale_size(width, scale)?, Self::scale_size(height, scale)?)
             .position_centered()
+            .build()?
+            .into_canvas()
             .build()?;
 
-        let mut canvas = window.into_canvas().build()?;
         canvas.set_scale(scale.into(), scale.into())?;
 
-        // TODO: safe multiplication
-        let video_size = (width * height) as usize;
+        let buffer_sz = width
+            .checked_mul(height)
+            .ok_or(WindowError::InvalidScreenSize(width, height))?;
+
+        let fps = Duration::from_secs(1)
+            .checked_div(fps)
+            .ok_or(WindowError::InvalidFPS(fps))?;
 
         Ok(Self {
             canvas,
+            buffer: vec![false; buffer_sz],
             width,
             height,
+            fps,
+            last: None,
             bg,
             fg,
-            buffer: vec![false; video_size],
         })
     }
 
-    pub fn scale_dim(x: usize, scale: u8) -> Result<u32, WindowError> {
-        // TODO: safe
-        Ok((x * (scale as usize)) as u32)
+    pub fn render(&mut self, now: Instant) -> Result<(), WindowError> {
+        let render = match self.last {
+            Some(prev) => now.duration_since(prev) >= self.fps,
+            None => true,
+        };
+
+        if render {
+            self.update()?;
+            self.last = Some(now);
+        }
+
+        Ok(())
     }
 
-    pub fn clear(&mut self) {
-        self.canvas.set_draw_color(self.bg);
-        self.canvas.clear();
-        self.canvas.present();
+    pub fn get_memory(&mut self) -> &mut [bool] {
+        &mut self.buffer
     }
 
-    pub fn render(&mut self) -> Result<(), WindowError> {
+    fn update(&mut self) -> Result<(), WindowError> {
         self.canvas.set_draw_color(self.bg);
         self.canvas.clear();
 
@@ -75,7 +95,9 @@ impl VideoEngine {
         Ok(())
     }
 
-    pub fn get_buffer(&mut self) -> &mut [bool] {
-        &mut self.buffer
+    fn scale_size(x: usize, scale: u8) -> Result<u32, WindowError> {
+        x.checked_mul(scale.into())
+            .and_then(|x_scaled| x_scaled.try_into().ok())
+            .ok_or(WindowError::InvalidScale(x, scale))
     }
 }

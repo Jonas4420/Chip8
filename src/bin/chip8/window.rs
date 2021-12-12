@@ -1,12 +1,12 @@
-use std::time::{Duration, Instant};
-
-use crate::options;
-use error::WindowError;
+use std::time::Instant;
 
 use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::EventPump;
+
+use crate::options;
+use error::WindowError;
 
 mod audio;
 mod error;
@@ -19,21 +19,14 @@ const WINDOW_FRAMERATE: u32 = 30;
 const WINDOW_BACKGROUND: Color = Color::RGB(0x28, 0x28, 0x28);
 const WINDOW_FOREGROUND: Color = Color::RGB(0xd5, 0xc4, 0xa1);
 
-pub struct WindowBuilder {
-    window: Window,
-}
-
 pub struct Window {
     video: video::VideoEngine,
     audio: audio::AudioEngine,
     keyboard: keyboard::KeyboardEngine,
     events: EventPump,
-    frame_period: Duration,
-    frame_last: Option<Instant>,
-    is_open: bool,
 }
 
-impl WindowBuilder {
+impl Window {
     pub fn new(dimensions: (usize, usize), keys: &[char], options: &options::Options) -> Result<Self, WindowError> {
         let sdl = sdl2::init()?;
 
@@ -44,32 +37,45 @@ impl WindowBuilder {
         let fg = options.fg.unwrap_or(WINDOW_FOREGROUND);
 
         // Initialize engines
-        let video = video::VideoEngine::new(&sdl, WINDOW_TITLE, dimensions, scale, bg, fg)?;
+        let video = video::VideoEngine::new(&sdl, WINDOW_TITLE, dimensions, scale, fps, bg, fg)?;
         let audio = audio::AudioEngine::new(&sdl)?;
         let keyboard = keyboard::KeyboardEngine::new(keys)?;
-
         let events = sdl.event_pump()?;
-        let frame_period = Duration::from_secs(1).checked_div(fps).unwrap();
 
-        let window = Window {
+        Ok(Self {
             video,
             audio,
             keyboard,
             events,
-            frame_period,
-            frame_last: None,
-            is_open: false,
-        };
-
-        Ok(Self { window })
+        })
     }
 
-    pub fn present(self) -> Window {
-        let mut window = self.window;
+    pub fn run<F>(&mut self, mut f: F) -> Result<(), Box<dyn std::error::Error>>
+    where
+        F: FnMut(&[bool], &mut [bool], &mut bool) -> Result<(), Box<dyn std::error::Error>>,
+    {
+        self.display()?;
 
-        window.video.clear();
+        while self.process_events() {
+            f(
+                self.keyboard.get_memory(),
+                self.video.get_memory(),
+                self.audio.get_memory(),
+            )?;
 
-        for event in window.events.wait_iter() {
+            self.audio.render()?;
+            self.video.render(Instant::now())?;
+
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+
+        Ok(())
+    }
+
+    fn display(&mut self) -> Result<(), WindowError> {
+        self.video.render(Instant::now())?;
+
+        for event in self.events.wait_iter() {
             if let Event::Window {
                 win_event: WindowEvent::FocusGained { .. },
                 ..
@@ -79,28 +85,20 @@ impl WindowBuilder {
             }
         }
 
-        window.is_open = true;
-
-        window
-    }
-}
-
-impl Window {
-    pub fn is_open(&self) -> bool {
-        self.is_open
+        Ok(())
     }
 
-    pub fn process_events(&mut self) -> Result<(), WindowError> {
+    fn process_events(&mut self) -> bool {
         for event in self.events.poll_iter() {
             match event {
                 Event::Quit { .. } => {
-                    self.is_open = false;
+                    return false;
                 }
                 Event::KeyDown {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => {
-                    self.is_open = false;
+                    return false;
                 }
                 Event::KeyDown {
                     scancode: Some(key), ..
@@ -116,32 +114,6 @@ impl Window {
             }
         }
 
-        Ok(())
-    }
-
-    pub fn render(&mut self, sound_timer: u8) -> Result<(), WindowError> {
-        let now = Instant::now();
-
-        let render = match self.frame_last {
-            Some(prev) => now.duration_since(prev) >= self.frame_period,
-            None => true,
-        };
-
-        if render {
-            self.video.render()?;
-            self.frame_last = Some(now);
-        }
-
-        if sound_timer > 0 {
-            self.audio.play();
-        } else {
-            self.audio.pause();
-        }
-
-        Ok(())
-    }
-
-    pub fn get_io(&mut self) -> (&[bool], &mut [bool]) {
-        (self.keyboard.get_buffer(), self.video.get_buffer())
+        true
     }
 }

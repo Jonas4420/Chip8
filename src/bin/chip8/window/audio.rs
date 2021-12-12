@@ -1,11 +1,13 @@
-use sdl2::audio::{AudioCallback, AudioDevice, AudioSpecDesired};
+use sdl2::audio::{AudioCallback, AudioDevice, AudioSpecDesired, AudioStatus};
 use sdl2::Sdl;
 
 use super::error::WindowError;
 
+pub const NOTE_PITCH: f32 = 440.0;
+
 pub struct AudioEngine {
     audio: AudioDevice<SquareWave>,
-    is_playing: bool,
+    beep: bool,
 }
 
 struct SquareWave {
@@ -18,35 +20,44 @@ impl AudioEngine {
     pub fn new(sdl: &Sdl) -> Result<Self, WindowError> {
         let audio = sdl.audio()?;
 
-        let desired_spec = AudioSpecDesired {
+        let spec = AudioSpecDesired {
             freq: Some(44100),
             channels: Some(1),
             samples: None,
         };
 
-        let device = audio.open_playback(None, &desired_spec, |spec| SquareWave {
-            phase_inc: 440.0 / (spec.freq as f32),
+        let audio = audio.open_playback(None, &spec, |spec| SquareWave {
+            phase_inc: NOTE_PITCH / (spec.freq as f32),
             phase: 0.0,
             volume: 0.1,
         })?;
 
-        Ok(AudioEngine {
-            audio: device,
-            is_playing: false,
-        })
+        Ok(AudioEngine { audio, beep: false })
     }
 
-    pub fn play(&mut self) {
-        if !self.is_playing {
+    pub fn render(&mut self) -> Result<(), WindowError> {
+        if self.beep {
+            self.play();
+        } else {
+            self.pause();
+        }
+
+        Ok(())
+    }
+
+    pub fn get_memory(&mut self) -> &mut bool {
+        &mut self.beep
+    }
+
+    fn play(&mut self) {
+        if let AudioStatus::Paused = self.audio.status() {
             self.audio.resume();
-            self.is_playing = true;
         }
     }
 
-    pub fn pause(&mut self) {
-        if self.is_playing {
+    fn pause(&mut self) {
+        if let AudioStatus::Playing = self.audio.status() {
             self.audio.pause();
-            self.is_playing = false;
         }
     }
 }
