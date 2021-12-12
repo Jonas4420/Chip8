@@ -57,6 +57,11 @@ impl Cpu {
         Default::default()
     }
 
+    pub fn start(&mut self) -> Result<()> {
+        // TODO
+        unimplemented!()
+    }
+
     pub fn cycle(&mut self, bus: &mut Bus) -> Result<()> {
         // Fetch
         let hi = bus.ram.read(self.pc)?;
@@ -87,7 +92,7 @@ impl Cpu {
             [0x8, _, _, 0xe] => self.op_shl(bus, x!(opcode), y!(opcode)),
             [0x9, _, _, 0x0] => self.op_sne(bus, x!(opcode), y!(opcode)),
             [0xa, _, _, _] => self.op_lea(bus, nnn!(opcode)),
-            [0xb, _, _, _] => self.op_jmprel(bus, nnn!(opcode)),
+            [0xb, _, _, _] => self.op_jmpshort(bus, nnn!(opcode)),
             [0xc, _, _, _] => self.op_rnd(bus, x!(opcode), kk!(opcode)),
             [0xd, _, _, _] => self.op_drw(bus, x!(opcode), y!(opcode), n!(opcode)),
             [0xe, _, 0x9, 0xe] => self.op_skp(bus, x!(opcode)),
@@ -114,14 +119,15 @@ impl Cpu {
         Ok(())
     }
 
-    fn op_nop(&mut self, bus: &mut Bus) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_nop(&mut self, _bus: &mut Bus) -> Result<ProgramCounter> {
+        Ok(ProgramCounter::Next)
     }
 
     fn op_cls(&mut self, bus: &mut Bus) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        for px in bus.screen.iter_mut() {
+            *px = false;
+        }
+        Ok(ProgramCounter::Next)
     }
 
     fn op_ret(&mut self, bus: &mut Bus) -> Result<ProgramCounter> {
@@ -129,9 +135,8 @@ impl Cpu {
         unimplemented!()
     }
 
-    fn op_jmp(&mut self, bus: &mut Bus, nnn: u16) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_jmp(&mut self, _bus: &mut Bus, nnn: u16) -> Result<ProgramCounter> {
+        Ok(ProgramCounter::Jump(nnn))
     }
 
     fn op_call(&mut self, bus: &mut Bus, nnn: u16) -> Result<ProgramCounter> {
@@ -139,24 +144,21 @@ impl Cpu {
         unimplemented!()
     }
 
-    fn op_sei(&mut self, bus: &mut Bus, x: usize, kk: u8) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_sei(&mut self, _bus: &mut Bus, x: usize, kk: u8) -> Result<ProgramCounter> {
+        Ok(ProgramCounter::skip_if(self.v[x] == kk))
     }
 
-    fn op_snei(&mut self, bus: &mut Bus, x: usize, kk: u8) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_snei(&mut self, _bus: &mut Bus, x: usize, kk: u8) -> Result<ProgramCounter> {
+        Ok(ProgramCounter::skip_if(self.v[x] != kk))
     }
 
-    fn op_se(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_se(&mut self, _bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
+        Ok(ProgramCounter::skip_if(self.v[x] == self.v[y]))
     }
 
-    fn op_movi(&mut self, bus: &mut Bus, x: usize, kk: u8) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_movi(&mut self, _bus: &mut Bus, x: usize, kk: u8) -> Result<ProgramCounter> {
+        self.v[x] = kk;
+        Ok(ProgramCounter::Next)
     }
 
     fn op_addi(&mut self, bus: &mut Bus, x: usize, kk: u8) -> Result<ProgramCounter> {
@@ -165,23 +167,23 @@ impl Cpu {
     }
 
     fn op_mov(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        self.v[x] = self.v[y];
+        Ok(ProgramCounter::Next);
     }
 
     fn op_or(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        self.v[x] |= self.v[y];
+        Ok(ProgramCounter::Next);
     }
 
     fn op_and(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        self.v[x] &= self.v[y];
+        Ok(ProgramCounter::Next);
     }
 
     fn op_xor(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        self.v[x] ^= self.v[y];
+        Ok(ProgramCounter::Next);
     }
 
     fn op_add(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
@@ -210,8 +212,7 @@ impl Cpu {
     }
 
     fn op_sne(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        Ok(ProgramCounter::skip_if(self.v[x] != self.v[y]))
     }
 
     fn op_lea(&mut self, bus: &mut Bus, nnn: u16) -> Result<ProgramCounter> {
@@ -219,7 +220,7 @@ impl Cpu {
         unimplemented!()
     }
 
-    fn op_jmprel(&mut self, bus: &mut Bus, nnn: u16) -> Result<ProgramCounter> {
+    fn op_jmpshort(&mut self, bus: &mut Bus, nnn: u16) -> Result<ProgramCounter> {
         // TODO
         unimplemented!()
     }
@@ -235,33 +236,45 @@ impl Cpu {
     }
 
     fn op_skp(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        if (self.v[x] as usize) < bus.pad.len() {
+            Ok(ProgramCounter::skip_if(bus.pad[self.v[x] as usize]))
+        } else {
+            Err(Error::PadAddressOutOfRange(self.v[x]))
+        }
     }
 
     fn op_sknp(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        if (self.v[x] as usize) < bus.pad.len() {
+            Ok(ProgramCounter::skip_if(!bus.pad[self.v[x] as usize]))
+        } else {
+            Err(Error::PadAddressOutOfRange(self.v[x]))
+        }
     }
 
     fn op_get_dt(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        self.v[x] = bus.dt.get();
+        Ok(ProgramCounter::Next)
     }
 
     fn op_wait(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        for (idx, key) in bus.pad.iter().enumerate() {
+            if *key {
+                self.v[x] = idx as u8;
+                return Ok(ProgramCounter::Next);
+            }
+        }
+
+        Ok(ProgramCounter::Wait)
     }
 
     fn op_set_dt(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        bus.dt.set(self.v[x]);
+        Ok(ProgramCounter::Next)
     }
 
     fn op_set_st(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        bus.st.set(self.v[x]);
+        Ok(ProgramCounter::Next)
     }
 
     fn op_inc(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
@@ -287,5 +300,15 @@ impl Cpu {
     fn op_popa(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
         // TODO
         unimplemented!()
+    }
+}
+
+impl ProgramCounter {
+    pub fn skip_if(cond: bool) -> Self {
+        if cond {
+            Self::Skip
+        } else {
+            Self::Next
+        }
     }
 }

@@ -6,41 +6,88 @@ use crate::error::Error;
 use crate::ram::Ram;
 use crate::timer::Timer;
 
+const PAD_MAPPINGS: [(char, usize); 0x10] = [
+    ('1', 0x1),
+    ('2', 0x2),
+    ('3', 0x3),
+    ('4', 0xc),
+    ('q', 0x4),
+    ('w', 0x5),
+    ('e', 0x6),
+    ('r', 0xd),
+    ('a', 0x7),
+    ('s', 0x8),
+    ('d', 0x9),
+    ('f', 0xe),
+    ('z', 0xa),
+    ('x', 0x0),
+    ('c', 0xb),
+    ('v', 0xf),
+];
+const SCREEN_SIZE: (usize, usize) = (64, 32);
+
 #[derive(Debug)]
 pub struct Chip8 {
     cpu: Cpu,
     ram: Ram,
     dt: Timer,
     st: Timer,
-    dim: (usize, usize),
-    mappings: [char; 16],
+    mapping: [char; PAD_MAPPINGS.len()],
+    screen_size: (usize, usize),
 }
 
 impl<'a> Chip8 {
     pub fn new() -> Self {
+        let mut sorted_map: Vec<_> = PAD_MAPPINGS.into();
+        sorted_map.sort_by_key(|mapping| mapping.1);
+
+        let mut mapping = [Default::default(); PAD_MAPPINGS.len()];
+        mapping
+            .iter_mut()
+            .zip(sorted_map.into_iter().map(|(key, idx)| key))
+            .for_each(|(dst, src)| *dst = src);
+
         Self {
             cpu: Default::default(),
             ram: Default::default(),
             dt: Default::default(),
             st: Default::default(),
-            dim: (64, 32),
-            mappings: [
-                'x', '1', '2', '3', 'q', 'w', 'e', 'a', 's', 'd', 'z', 'c', '4', 'r', 'f', 'v',
-            ],
+            mapping,
+            screen_size: SCREEN_SIZE,
         }
     }
 
     pub fn load_rom(&mut self, rom: &Path) -> Result<(), Error> {
+        // TODO: open file
+        // TODO: read file
+        // TODO: write file in ram
+        // TODO: write font in ram
+        // TODO: setup PC
+        // TODO: setup font offset
         Ok(())
     }
 
     pub fn clock(&mut self, screen: &mut [bool], pad: &[bool], buzz: &mut bool) -> Result<(), Error> {
+        if screen.len() != (self.screen_size.0 * self.screen_size.1) {
+            return Err(Error::InvalidScreenSize(
+                (self.screen_size.0 * self.screen_size.1),
+                screen.len(),
+            ));
+        }
+
+        if pad.len() != self.mapping.len() {
+            return Err(Error::InvalidPadSize(self.mapping.len(), pad.len()));
+        }
+
+        // TODO: check screen size matches dim
+        // TODO: check pad size matches
+
         let mut bus = Bus {
-            screen: screen,
-            pad: pad,
             ram: &mut self.ram,
             dt: &mut self.dt,
             st: &mut self.st,
+            screen: screen,
+            pad: pad,
         };
 
         self.cpu.cycle(&mut bus)?;
@@ -50,11 +97,11 @@ impl<'a> Chip8 {
         Ok(())
     }
 
-    pub fn get_screen_size(&self) -> (usize, usize) {
-        self.dim
+    pub fn get_mapping(&self) -> &[char] {
+        &self.mapping
     }
 
-    pub fn get_key_mapping(&self) -> &[char] {
-        &self.mappings
+    pub fn get_screen_size(&self) -> (usize, usize) {
+        self.screen_size
     }
 }

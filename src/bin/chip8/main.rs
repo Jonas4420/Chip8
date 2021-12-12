@@ -19,7 +19,7 @@ fn main() {
 fn try_main() -> Result<(), Box<dyn std::error::Error>> {
     let options = Options::parse_from(std::env::args());
     let mut chip8 = Chip8::new();
-    let mut window = Window::new(chip8.get_screen_size(), chip8.get_key_mapping(), &options)?;
+    let mut window = Window::new(chip8.get_screen_size(), chip8.get_mapping(), &options)?;
 
     chip8.load_rom(&options.rom)?;
 

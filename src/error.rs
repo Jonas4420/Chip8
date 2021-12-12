@@ -2,8 +2,11 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum Error {
+    InvalidScreenSize(usize, usize),
+    InvalidPadSize(usize, usize),
     InvalidAddress(u16),
     UnknownOpcode([u8; 4]),
+    PadAddressOutOfRange(u8),
 }
 
 impl fmt::Display for Error {

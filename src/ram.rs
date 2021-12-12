@@ -1,6 +1,6 @@
 use crate::error::Error;
 
-const MEMORY_SIZE: usize = 4096;
+const MEMORY_SIZE: usize = 0x1000;
 
 #[derive(Debug)]
 pub struct Ram {
