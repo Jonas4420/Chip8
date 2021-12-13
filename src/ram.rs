@@ -8,10 +8,6 @@ pub struct Ram {
 }
 
 impl Ram {
-    pub fn new() -> Self {
-        Default::default()
-    }
-
     pub fn read(&mut self, addr: u16) -> Result<u8, Error> {
         if (addr as usize) < self.memory.len() {
             Ok(self.memory[addr as usize])

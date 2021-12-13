@@ -4,10 +4,6 @@ pub struct Timer {
 }
 
 impl Timer {
-    pub fn new() -> Self {
-        Default::default()
-    }
-
     pub fn clock(&mut self) {
         self.set(self.value.saturating_sub(1));
     }

@@ -3,6 +3,7 @@ mod chip8;
 mod cpu;
 mod error;
 mod ram;
+mod rng;
 mod timer;
 
 // TODO: debug trait

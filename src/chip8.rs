@@ -4,6 +4,7 @@ use crate::bus::Bus;
 use crate::cpu::Cpu;
 use crate::error::Error;
 use crate::ram::Ram;
+use crate::rng::Rng;
 use crate::timer::Timer;
 
 const PAD_MAPPINGS: [(char, usize); 0x10] = [
@@ -30,6 +31,7 @@ const SCREEN_SIZE: (usize, usize) = (64, 32);
 pub struct Chip8 {
     cpu: Cpu,
     ram: Ram,
+    rng: Rng,
     dt: Timer,
     st: Timer,
     mapping: [char; PAD_MAPPINGS.len()],
@@ -37,24 +39,25 @@ pub struct Chip8 {
 }
 
 impl<'a> Chip8 {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, Error> {
         let mut sorted_map: Vec<_> = PAD_MAPPINGS.into();
         sorted_map.sort_by_key(|mapping| mapping.1);
 
         let mut mapping = [Default::default(); PAD_MAPPINGS.len()];
         mapping
             .iter_mut()
-            .zip(sorted_map.into_iter().map(|(key, idx)| key))
+            .zip(sorted_map.into_iter().map(|(key, _)| key))
             .for_each(|(dst, src)| *dst = src);
 
-        Self {
+        Ok(Self {
             cpu: Default::default(),
             ram: Default::default(),
+            rng: Rng::new(0x0001)?,
             dt: Default::default(),
             st: Default::default(),
             mapping,
             screen_size: SCREEN_SIZE,
-        }
+        })
     }
 
     pub fn load_rom(&mut self, rom: &Path) -> Result<(), Error> {
@@ -70,7 +73,7 @@ impl<'a> Chip8 {
     pub fn clock(&mut self, screen: &mut [bool], pad: &[bool], buzz: &mut bool) -> Result<(), Error> {
         if screen.len() != (self.screen_size.0 * self.screen_size.1) {
             return Err(Error::InvalidScreenSize(
-                (self.screen_size.0 * self.screen_size.1),
+                self.screen_size.0 * self.screen_size.1,
                 screen.len(),
             ));
         }
@@ -84,13 +87,16 @@ impl<'a> Chip8 {
 
         let mut bus = Bus {
             ram: &mut self.ram,
+            rng: &mut self.rng,
             dt: &mut self.dt,
             st: &mut self.st,
-            screen: screen,
-            pad: pad,
+            screen,
+            pad,
         };
 
         self.cpu.cycle(&mut bus)?;
+        self.dt.clock();
+        self.st.clock();
 
         *buzz = self.st.get() > 0;
 

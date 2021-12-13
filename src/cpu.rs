@@ -4,34 +4,35 @@ use crate::error::Error;
 type Result<T> = std::result::Result<T, Error>;
 
 const OPCODE_SIZE: u16 = 2;
+const FONT_SIZE: u16 = 5;
 
 macro_rules! nnn {
     ($op: expr) => {
-        (((($op[1] & 0xf) as u16) << 8) | ((($op[2] & 0xf) as u16) << 4) | ((($op[3] & 0xf) as u16) << 0)).into()
+        ((($op[1] & 0xf) as u16) << 8) | ((($op[2] & 0xf) as u16) << 4) | ((($op[3] & 0xf) as u16) << 0)
     };
 }
 
 macro_rules! kk {
     ($op: expr) => {
-        (((($op[2] & 0xf) as u8) << 4) | (($op[3] & 0xf) as u8)).into()
-    };
-}
-
-macro_rules! x {
-    ($op: expr) => {
-        ($op[1]).into()
-    };
-}
-
-macro_rules! y {
-    ($op: expr) => {
-        ($op[2]).into()
+        ((($op[2] & 0xf) as u8) << 4) | (($op[3] & 0xf) as u8)
     };
 }
 
 macro_rules! n {
     ($op: expr) => {
-        ($op[3]).into()
+        $op[3] as u8
+    };
+}
+
+macro_rules! x {
+    ($op: expr) => {
+        $op[1] as usize
+    };
+}
+
+macro_rules! y {
+    ($op: expr) => {
+        $op[2] as usize
     };
 }
 
@@ -42,6 +43,7 @@ pub struct Cpu {
     pc: u16,
     sp: u8,
     stack: [u16; 0x10],
+    ft: u16,
 }
 
 #[derive(Debug)]
@@ -53,21 +55,18 @@ enum ProgramCounter {
 }
 
 impl Cpu {
-    pub fn new() -> Self {
-        Default::default()
-    }
-
-    pub fn start(&mut self) -> Result<()> {
-        // TODO
-        unimplemented!()
+    pub fn setup(&mut self, pc: u16, ft: u16) {
+        self.pc = pc;
+        self.sp = 0;
+        self.ft = ft;
     }
 
     pub fn cycle(&mut self, bus: &mut Bus) -> Result<()> {
         // Fetch
         let hi = bus.ram.read(self.pc)?;
-        let lo = bus.ram.read(self.pc + 1)?;
+        let lo = bus.ram.read(self.pc.wrapping_add(1))?;
 
-        let opcode = [(hi >> 4) & 0xf, (hi >> 0) & 0xf, (lo >> 4) & 0xf, (lo >> 0) & 0xf];
+        let opcode = [(hi >> 4) & 0xf, hi & 0xf, (lo >> 4) & 0xf, lo & 0xf];
 
         // Decode and execute
         let pc = match opcode {
@@ -111,8 +110,8 @@ impl Cpu {
 
         self.pc = match pc {
             ProgramCounter::Wait => self.pc,
-            ProgramCounter::Next => self.pc + OPCODE_SIZE,
-            ProgramCounter::Skip => self.pc + (2 * OPCODE_SIZE),
+            ProgramCounter::Next => self.pc.wrapping_add(OPCODE_SIZE),
+            ProgramCounter::Skip => self.pc.wrapping_add(2 * OPCODE_SIZE),
             ProgramCounter::Jump(addr) => addr,
         };
 
@@ -130,18 +129,18 @@ impl Cpu {
         Ok(ProgramCounter::Next)
     }
 
-    fn op_ret(&mut self, bus: &mut Bus) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_ret(&mut self, _bus: &mut Bus) -> Result<ProgramCounter> {
+        let addr = self.stack_pop()?;
+        Ok(ProgramCounter::Jump(addr))
     }
 
     fn op_jmp(&mut self, _bus: &mut Bus, nnn: u16) -> Result<ProgramCounter> {
         Ok(ProgramCounter::Jump(nnn))
     }
 
-    fn op_call(&mut self, bus: &mut Bus, nnn: u16) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_call(&mut self, _bus: &mut Bus, nnn: u16) -> Result<ProgramCounter> {
+        self.stack_push(self.pc.wrapping_add(OPCODE_SIZE))?;
+        Ok(ProgramCounter::Jump(nnn))
     }
 
     fn op_sei(&mut self, _bus: &mut Bus, x: usize, kk: u8) -> Result<ProgramCounter> {
@@ -161,73 +160,83 @@ impl Cpu {
         Ok(ProgramCounter::Next)
     }
 
-    fn op_addi(&mut self, bus: &mut Bus, x: usize, kk: u8) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_addi(&mut self, _bus: &mut Bus, x: usize, kk: u8) -> Result<ProgramCounter> {
+        self.v[x] = self.v[x].wrapping_add(kk);
+        Ok(ProgramCounter::Next)
     }
 
-    fn op_mov(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
+    fn op_mov(&mut self, _bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
         self.v[x] = self.v[y];
-        Ok(ProgramCounter::Next);
+        Ok(ProgramCounter::Next)
     }
 
-    fn op_or(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
+    fn op_or(&mut self, _bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
         self.v[x] |= self.v[y];
-        Ok(ProgramCounter::Next);
+        Ok(ProgramCounter::Next)
     }
 
-    fn op_and(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
+    fn op_and(&mut self, _bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
         self.v[x] &= self.v[y];
-        Ok(ProgramCounter::Next);
+        Ok(ProgramCounter::Next)
     }
 
-    fn op_xor(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
+    fn op_xor(&mut self, _bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
         self.v[x] ^= self.v[y];
-        Ok(ProgramCounter::Next);
+        Ok(ProgramCounter::Next)
     }
 
-    fn op_add(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_add(&mut self, _bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
+        let (vx, vf) = self.v[x].overflowing_add(self.v[y]);
+        self.v[x] = vx;
+        self.v[0xf] = if vf { 0x01 } else { 0x00 };
+        Ok(ProgramCounter::Next)
     }
 
-    fn op_sub(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_sub(&mut self, _bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
+        let vf = if self.v[x] > self.v[y] { 0x01 } else { 0x00 };
+        self.v[x] = self.v[x].wrapping_sub(self.v[y]);
+        self.v[0xf] = vf;
+        Ok(ProgramCounter::Next)
     }
 
-    fn op_shr(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_shr(&mut self, _bus: &mut Bus, x: usize, _y: usize) -> Result<ProgramCounter> {
+        let vf = if self.v[x] & 0x01 != 0 { 0x01 } else { 0x00 };
+        self.v[x] >>= 1;
+        self.v[0xf] = vf;
+        Ok(ProgramCounter::Next)
     }
 
-    fn op_subn(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_subn(&mut self, _bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
+        let vf = if self.v[y] > self.v[x] { 0x01 } else { 0x00 };
+        self.v[x] = self.v[y].wrapping_sub(self.v[x]);
+        self.v[0xf] = vf;
+        Ok(ProgramCounter::Next)
     }
 
-    fn op_shl(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_shl(&mut self, _bus: &mut Bus, x: usize, _y: usize) -> Result<ProgramCounter> {
+        let vf = if self.v[x] & 0x80 != 0 { 0x01 } else { 0x00 };
+        self.v[x] <<= 1;
+        self.v[0xf] = vf;
+        Ok(ProgramCounter::Next)
     }
 
-    fn op_sne(&mut self, bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
+    fn op_sne(&mut self, _bus: &mut Bus, x: usize, y: usize) -> Result<ProgramCounter> {
         Ok(ProgramCounter::skip_if(self.v[x] != self.v[y]))
     }
 
-    fn op_lea(&mut self, bus: &mut Bus, nnn: u16) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_lea(&mut self, _bus: &mut Bus, nnn: u16) -> Result<ProgramCounter> {
+        self.i = nnn;
+        Ok(ProgramCounter::Next)
     }
 
-    fn op_jmpshort(&mut self, bus: &mut Bus, nnn: u16) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_jmpshort(&mut self, _bus: &mut Bus, nnn: u16) -> Result<ProgramCounter> {
+        let addr = nnn.wrapping_add(self.v[0] as u16);
+        Ok(ProgramCounter::Jump(addr))
     }
 
     fn op_rnd(&mut self, bus: &mut Bus, x: usize, kk: u8) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        self.v[x] = bus.rng.get_byte() & kk;
+        Ok(ProgramCounter::Next)
     }
 
     fn op_drw(&mut self, bus: &mut Bus, x: usize, y: usize, n: u8) -> Result<ProgramCounter> {
@@ -277,29 +286,59 @@ impl Cpu {
         Ok(ProgramCounter::Next)
     }
 
-    fn op_inc(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_inc(&mut self, _bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
+        self.i = self.i.wrapping_add(self.v[x] as u16);
+        Ok(ProgramCounter::Next)
     }
 
-    fn op_ldfont(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+    fn op_ldfont(&mut self, _bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
+        self.i = self.ft.wrapping_add((self.v[x] as u16) * FONT_SIZE);
+        Ok(ProgramCounter::Next)
     }
 
     fn op_bcd(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        let digits = [(self.v[x] / 100) % 10, (self.v[x] / 10) % 10, self.v[x] % 10];
+
+        bus.ram.write(self.i, digits[0])?;
+        bus.ram.write(self.i + 1, digits[1])?;
+        bus.ram.write(self.i + 2, digits[2])?;
+
+        Ok(ProgramCounter::Next)
     }
 
     fn op_pusha(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        for i in 0..=x {
+            bus.ram.write(self.i.wrapping_add(i as u16), self.v[i])?;
+        }
+
+        Ok(ProgramCounter::Next)
     }
 
     fn op_popa(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        for i in 0..=x {
+            self.v[i] = bus.ram.read(self.i.wrapping_add(i as u16))?;
+        }
+
+        Ok(ProgramCounter::Next)
+    }
+
+    fn stack_push(&mut self, addr: u16) -> Result<()> {
+        if (self.sp as usize) < self.stack.len() {
+            self.stack[self.sp as usize] = addr;
+            self.sp += 1;
+            Ok(())
+        } else {
+            Err(Error::StackOverflow)
+        }
+    }
+
+    fn stack_pop(&mut self) -> Result<u16> {
+        if self.sp > 0 {
+            self.sp -= 1;
+            Ok(self.stack[self.sp as usize])
+        } else {
+            Err(Error::StackOverflow)
+        }
     }
 }
 

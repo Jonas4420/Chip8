@@ -7,6 +7,8 @@ pub enum Error {
     InvalidAddress(u16),
     UnknownOpcode([u8; 4]),
     PadAddressOutOfRange(u8),
+    StackOverflow,
+    RngSeedNul,
 }
 
 impl fmt::Display for Error {
