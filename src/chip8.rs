@@ -5,6 +5,7 @@ use crate::cpu::Cpu;
 use crate::error::Error;
 use crate::ram::Ram;
 use crate::rng::Rng;
+use crate::screen::Screen;
 use crate::timer::Timer;
 
 const PAD_MAPPINGS: [(char, usize); 0x10] = [
@@ -39,7 +40,7 @@ pub struct Chip8 {
 }
 
 impl<'a> Chip8 {
-    pub fn new() -> Result<Self, Error> {
+    pub fn new() -> Self {
         let mut sorted_map: Vec<_> = PAD_MAPPINGS.into();
         sorted_map.sort_by_key(|mapping| mapping.1);
 
@@ -49,15 +50,15 @@ impl<'a> Chip8 {
             .zip(sorted_map.into_iter().map(|(key, _)| key))
             .for_each(|(dst, src)| *dst = src);
 
-        Ok(Self {
+        Self {
             cpu: Default::default(),
             ram: Default::default(),
-            rng: Rng::new(0x0001)?,
+            rng: Default::default(),
             dt: Default::default(),
             st: Default::default(),
             mapping,
             screen_size: SCREEN_SIZE,
-        })
+        }
     }
 
     pub fn load_rom(&mut self, rom: &Path) -> Result<(), Error> {
@@ -67,6 +68,11 @@ impl<'a> Chip8 {
         // TODO: write font in ram
         // TODO: setup PC
         // TODO: setup font offset
+        // TODO: setup seed
+
+        // self.cpu.init(pc, ft);
+        // self.rng.seed();
+
         Ok(())
     }
 
@@ -82,18 +88,19 @@ impl<'a> Chip8 {
             return Err(Error::InvalidPadSize(self.mapping.len(), pad.len()));
         }
 
-        // TODO: check screen size matches dim
-        // TODO: check pad size matches
-
         let mut bus = Bus {
             ram: &mut self.ram,
             rng: &mut self.rng,
             dt: &mut self.dt,
             st: &mut self.st,
-            screen,
+            screen: Screen {
+                memory: screen,
+                size: self.screen_size,
+            },
             pad,
         };
 
+        // TODO: clock at correct frequency
         self.cpu.cycle(&mut bus)?;
         self.dt.clock();
         self.st.clock();

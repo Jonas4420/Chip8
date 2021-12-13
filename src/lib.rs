@@ -4,6 +4,7 @@ mod cpu;
 mod error;
 mod ram;
 mod rng;
+mod screen;
 mod timer;
 
 // TODO: debug trait

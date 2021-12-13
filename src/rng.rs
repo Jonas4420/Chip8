@@ -1,12 +1,12 @@
 use crate::error::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Rng {
     seed: u16,
 }
 
 impl Rng {
-    pub fn new(seed: u16) -> Result<Self, Error> {
+    pub fn seed(seed: u16) -> Result<Self, Error> {
         if seed != 0x0000 {
             Ok(Self { seed })
         } else {

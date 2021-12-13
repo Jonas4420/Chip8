@@ -1,5 +1,6 @@
 use crate::ram::Ram;
 use crate::rng::Rng;
+use crate::screen::Screen;
 use crate::timer::Timer;
 
 #[derive(Debug)]
@@ -8,6 +9,6 @@ pub struct Bus<'a> {
     pub rng: &'a mut Rng,
     pub dt: &'a mut Timer,
     pub st: &'a mut Timer,
-    pub screen: &'a mut [bool],
+    pub screen: Screen<'a>,
     pub pad: &'a [bool],
 }

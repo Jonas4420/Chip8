@@ -19,7 +19,7 @@ fn main() {
 fn try_main() -> Result<(), Box<dyn std::error::Error>> {
     let options = Options::parse_from(std::env::args());
     // TODO: give CPU options (seed, freq, etc)
-    let mut chip8 = Chip8::new()?;
+    let mut chip8 = Chip8::new();
     let mut window = Window::new(chip8.get_screen_size(), chip8.get_mapping(), &options)?;
 
     chip8.load_rom(&options.rom)?;

@@ -55,7 +55,7 @@ enum ProgramCounter {
 }
 
 impl Cpu {
-    pub fn setup(&mut self, pc: u16, ft: u16) {
+    pub fn init(&mut self, pc: u16, ft: u16) {
         self.pc = pc;
         self.sp = 0;
         self.ft = ft;
@@ -123,9 +123,7 @@ impl Cpu {
     }
 
     fn op_cls(&mut self, bus: &mut Bus) -> Result<ProgramCounter> {
-        for px in bus.screen.iter_mut() {
-            *px = false;
-        }
+        bus.screen.clear();
         Ok(ProgramCounter::Next)
     }
 
@@ -240,8 +238,15 @@ impl Cpu {
     }
 
     fn op_drw(&mut self, bus: &mut Bus, x: usize, y: usize, n: u8) -> Result<ProgramCounter> {
-        // TODO
-        unimplemented!()
+        let vf = (0..n).try_fold(0x00, |acc, i| {
+            let byte = bus.ram.read(self.i.wrapping_add(i as u16))?;
+            let erased = bus.screen.draw(self.v[x], self.v[y], byte);
+            Ok(if erased { 0x01 } else { acc })
+        })?;
+
+        self.v[0xf] = vf;
+
+        Ok(ProgramCounter::Next)
     }
 
     fn op_skp(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
@@ -266,14 +271,12 @@ impl Cpu {
     }
 
     fn op_wait(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
-        for (idx, key) in bus.pad.iter().enumerate() {
-            if *key {
-                self.v[x] = idx as u8;
-                return Ok(ProgramCounter::Next);
-            }
+        if let Some(idx) = bus.pad.iter().position(|&key| key) {
+            self.v[x] = idx as u8;
+            Ok(ProgramCounter::Next)
+        } else {
+            Ok(ProgramCounter::Wait)
         }
-
-        Ok(ProgramCounter::Wait)
     }
 
     fn op_set_dt(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
@@ -299,9 +302,9 @@ impl Cpu {
     fn op_bcd(&mut self, bus: &mut Bus, x: usize) -> Result<ProgramCounter> {
         let digits = [(self.v[x] / 100) % 10, (self.v[x] / 10) % 10, self.v[x] % 10];
 
-        bus.ram.write(self.i, digits[0])?;
-        bus.ram.write(self.i + 1, digits[1])?;
-        bus.ram.write(self.i + 2, digits[2])?;
+        for i in 0..digits.len() {
+            bus.ram.write(self.i.wrapping_add(i as u16), digits[i])?;
+        }
 
         Ok(ProgramCounter::Next)
     }
