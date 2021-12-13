@@ -3,6 +3,7 @@ use std::io::prelude::*;
 use std::path;
 
 use crate::bus::Bus;
+use crate::clock::Clock;
 use crate::cpu::Cpu;
 use crate::error::Error;
 use crate::ram::Ram;
@@ -60,6 +61,7 @@ pub struct Chip8 {
     st: Timer,
     mapping: [char; PAD_MAPPINGS.len()],
     screen_size: (usize, usize),
+    clock_60htz: Clock,
 }
 
 impl<'a> Chip8 {
@@ -81,6 +83,7 @@ impl<'a> Chip8 {
             st: Default::default(),
             mapping,
             screen_size: SCREEN_SIZE,
+            clock_60htz: Clock::new(std::time::Duration::from_secs(1).div_f32(60.0)),
         }
     }
 
@@ -88,7 +91,7 @@ impl<'a> Chip8 {
     where
         T: AsRef<path::Path>,
     {
-        // Don't do IO here
+        // TODO: Don't do IO here
         let mut f = fs::File::open(rom)?;
         let pc = PROGRAM_START;
         let ft = FONT_OFFSET;
@@ -99,7 +102,13 @@ impl<'a> Chip8 {
             self.ram.write(addr, byte?)?;
         }
 
-        // TODO: write font in ram
+        let mut addr = ft;
+        for sprite in FONT_SPRITES {
+            for (i, byte) in sprite.iter().enumerate() {
+                self.ram.write(addr, *byte)?;
+                addr = addr.wrapping_add(1);
+            }
+        }
 
         self.cpu.init(pc, ft);
         self.rng.seed(seed)?;
@@ -133,8 +142,11 @@ impl<'a> Chip8 {
 
         // TODO: clock at correct frequency
         self.cpu.cycle(&mut bus)?;
-        self.dt.clock();
-        self.st.clock();
+
+        self.clock_60htz.tick(std::time::Instant::now(), || {
+            self.dt.clock();
+            self.st.clock();
+        });
 
         *buzz = self.st.get() > 0;
 
