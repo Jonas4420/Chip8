@@ -62,6 +62,7 @@ pub struct Chip8 {
     mapping: [char; PAD_MAPPINGS.len()],
     screen_size: (usize, usize),
     clock_60htz: Clock,
+    clock_cpu: Clock,
 }
 
 impl<'a> Chip8 {
@@ -84,6 +85,7 @@ impl<'a> Chip8 {
             mapping,
             screen_size: SCREEN_SIZE,
             clock_60htz: Clock::new(std::time::Duration::from_secs(1).div_f32(60.0)),
+            clock_cpu: Clock::new(std::time::Duration::from_secs(1).div_f32(500.0)),
         }
     }
 
@@ -141,11 +143,13 @@ impl<'a> Chip8 {
         };
 
         // TODO: clock at correct frequency
-        self.cpu.cycle(&mut bus)?;
+        self.clock_cpu
+            .tick(std::time::Instant::now(), || self.cpu.cycle(&mut bus))?;
 
         self.clock_60htz.tick(std::time::Instant::now(), || {
             self.dt.clock();
             self.st.clock();
+            Ok(())
         });
 
         *buzz = self.st.get() > 0;

@@ -64,9 +64,6 @@ impl Window {
 
             self.audio.render()?;
             self.video.render(Instant::now())?;
-
-            // TODO
-            std::thread::sleep(std::time::Duration::from_millis(1));
         }
 
         Ok(())

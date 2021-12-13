@@ -1,5 +1,7 @@
 use std::time;
 
+use crate::error::Error;
+
 #[derive(Debug)]
 pub struct Clock {
     freq: time::Duration,
@@ -11,19 +13,21 @@ impl Clock {
         Self { freq, last: None }
     }
 
-    pub fn tick<F>(&mut self, now: time::Instant, mut f: F)
+    pub fn tick<F>(&mut self, now: time::Instant, mut f: F) -> Result<(), Error>
     where
-        F: FnMut() -> (),
+        F: FnMut() -> Result<(), Error>,
     {
-        if let Some(mut last) = self.last {
+        self.last = if let Some(mut last) = self.last {
             while now.saturating_duration_since(last) >= self.freq {
-                f();
+                f()?;
                 last += self.freq;
             }
-            self.last = Some(last);
+            Some(last)
         } else {
-            f();
-            self.last = Some(now);
-        }
+            f()?;
+            Some(now)
+        };
+
+        Ok(())
     }
 }
