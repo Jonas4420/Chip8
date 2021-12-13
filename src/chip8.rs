@@ -1,4 +1,6 @@
-use std::path::Path;
+use std::fs;
+use std::io::prelude::*;
+use std::path;
 
 use crate::bus::Bus;
 use crate::cpu::Cpu;
@@ -26,7 +28,28 @@ const PAD_MAPPINGS: [(char, usize); 0x10] = [
     ('c', 0xb),
     ('v', 0xf),
 ];
+const FONT_SPRITES: [[u8; 5]; 0x10] = [
+    [0b11110000, 0b10010000, 0b10010000, 0b10010000, 0b11110000],
+    [0b00100000, 0b01100000, 0b00100000, 0b00100000, 0b01110000],
+    [0b11110000, 0b00010000, 0b11110000, 0b10000000, 0b11110000],
+    [0b11110000, 0b00010000, 0b11110000, 0b00010000, 0b11110000],
+    [0b10010000, 0b10010000, 0b11110000, 0b00010000, 0b00010000],
+    [0b11110000, 0b10000000, 0b11110000, 0b00010000, 0b11110000],
+    [0b11110000, 0b10000000, 0b11110000, 0b10010000, 0b11110000],
+    [0b11110000, 0b00010000, 0b00100000, 0b01000000, 0b01000000],
+    [0b11110000, 0b10010000, 0b11110000, 0b10010000, 0b11110000],
+    [0b11110000, 0b10010000, 0b11110000, 0b00010000, 0b11110000],
+    [0b11110000, 0b10010000, 0b11110000, 0b10010000, 0b10010000],
+    [0b11100000, 0b10010000, 0b11100000, 0b10010000, 0b11100000],
+    [0b11110000, 0b10000000, 0b10000000, 0b10000000, 0b11110000],
+    [0b11100000, 0b10010000, 0b10010000, 0b10010000, 0b11100000],
+    [0b11110000, 0b10000000, 0b11110000, 0b10000000, 0b11110000],
+    [0b11110000, 0b10000000, 0b11110000, 0b10000000, 0b10000000],
+];
 const SCREEN_SIZE: (usize, usize) = (64, 32);
+const PROGRAM_START: u16 = 0x0200;
+const FONT_OFFSET: u16 = 0x0000;
+const RNG_SEED: u16 = 0xcafe;
 
 #[derive(Debug)]
 pub struct Chip8 {
@@ -61,17 +84,25 @@ impl<'a> Chip8 {
         }
     }
 
-    pub fn load_rom(&mut self, rom: &Path) -> Result<(), Error> {
-        // TODO: open file
-        // TODO: read file
-        // TODO: write file in ram
-        // TODO: write font in ram
-        // TODO: setup PC
-        // TODO: setup font offset
-        // TODO: setup seed
+    pub fn load_rom<T>(&mut self, rom: T, freq: Option<f32>, seed: Option<u16>) -> Result<(), Error>
+    where
+        T: AsRef<path::Path>,
+    {
+        // Don't do IO here
+        let mut f = fs::File::open(rom)?;
+        let pc = PROGRAM_START;
+        let ft = FONT_OFFSET;
+        let seed = seed.unwrap_or(RNG_SEED);
 
-        // self.cpu.init(pc, ft);
-        // self.rng.seed();
+        for (i, byte) in f.bytes().enumerate() {
+            let addr = pc.wrapping_add(i as u16);
+            self.ram.write(addr, byte?)?;
+        }
+
+        // TODO: write font in ram
+
+        self.cpu.init(pc, ft);
+        self.rng.seed(seed)?;
 
         Ok(())
     }

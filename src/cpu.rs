@@ -239,9 +239,11 @@ impl Cpu {
 
     fn op_drw(&mut self, bus: &mut Bus, x: usize, y: usize, n: u8) -> Result<ProgramCounter> {
         let vf = (0..n).try_fold(0x00, |acc, i| {
-            let byte = bus.ram.read(self.i.wrapping_add(i as u16))?;
-            let erased = bus.screen.draw(self.v[x], self.v[y], byte);
-            Ok(if erased { 0x01 } else { acc })
+            let addr = self.i.wrapping_add(i as u16);
+            bus.ram.read(addr).and_then(|byte| {
+                let erased = bus.screen.draw(self.v[x], self.v[y], byte);
+                Ok(if erased { 0x01 } else { acc })
+            })
         })?;
 
         self.v[0xf] = vf;

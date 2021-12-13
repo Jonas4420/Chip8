@@ -6,9 +6,10 @@ pub struct Rng {
 }
 
 impl Rng {
-    pub fn seed(seed: u16) -> Result<Self, Error> {
+    pub fn seed(&mut self, seed: u16) -> Result<(), Error> {
         if seed != 0x0000 {
-            Ok(Self { seed })
+            self.seed = seed;
+            Ok(())
         } else {
             Err(Error::RngSeedNul)
         }

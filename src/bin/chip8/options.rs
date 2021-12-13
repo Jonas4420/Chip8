@@ -19,7 +19,7 @@ pub struct Options {
     pub fps: Option<u32>,
     /// CPU Frequency (in hertz)
     #[clap(long)]
-    pub freq: Option<u8>,
+    pub freq: Option<f32>,
     /// Window scale
     #[clap(long, possible_values = [ "1", "2", "4", "8", "16" ])]
     pub scale: Option<u8>,
