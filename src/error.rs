@@ -1,6 +1,8 @@
 use std::fmt;
 use std::io;
 
+// TODO: refactor errors
+
 #[derive(Debug)]
 pub enum Error {
     InvalidScreenSize(usize, usize),

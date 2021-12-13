@@ -66,7 +66,7 @@ pub struct Chip8 {
 }
 
 impl<'a> Chip8 {
-    pub fn new() -> Self {
+    pub fn new(freq: Option<f32>) -> Self {
         let mut sorted_map: Vec<_> = PAD_MAPPINGS.into();
         sorted_map.sort_by_key(|mapping| mapping.1);
 
@@ -89,7 +89,7 @@ impl<'a> Chip8 {
         }
     }
 
-    pub fn load_rom<T>(&mut self, rom: T, freq: Option<f32>, seed: Option<u16>) -> Result<(), Error>
+    pub fn load_rom<T>(&mut self, rom: T, seed: Option<u16>) -> Result<(), Error>
     where
         T: AsRef<path::Path>,
     {
@@ -137,20 +137,23 @@ impl<'a> Chip8 {
             st: &mut self.st,
             screen: Screen {
                 memory: screen,
-                size: self.screen_size,
+                width: self.screen_size.0,
+                height: self.screen_size.1,
             },
             pad,
         };
 
         // TODO: clock at correct frequency
-        self.clock_cpu
-            .tick(std::time::Instant::now(), || self.cpu.cycle(&mut bus))?;
+        self.clock_cpu.tick(std::time::Instant::now(), || {
+            self.cpu.cycle(&mut bus)?;
+            Ok(())
+        })?;
 
         self.clock_60htz.tick(std::time::Instant::now(), || {
             self.dt.clock();
             self.st.clock();
             Ok(())
-        });
+        })?;
 
         *buzz = self.st.get() > 0;
 
