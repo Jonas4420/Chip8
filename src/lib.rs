@@ -1,5 +1,6 @@
 mod bus;
 mod chip8;
+mod crc16;
 mod clock;
 mod cpu;
 mod error;

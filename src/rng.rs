@@ -13,8 +13,8 @@ impl Rng {
 
         self.state = seed;
 
-        // Filter out first 16 bits, to not output the seed
-        for i in 0..16 {
+        // Filter out first 16 bits, to not directly output the seed
+        for _ in 0..16 {
             self.next();
         }
 
@@ -22,7 +22,7 @@ impl Rng {
     }
 
     pub fn get_byte(&mut self) -> u8 {
-        (0..8).fold(0x00, |acc, i| {
+        (0..8).fold(0x00, |acc, _| {
             let bit = (self.state & 0x0001) as u8;
             self.next();
             (acc << 1) | bit

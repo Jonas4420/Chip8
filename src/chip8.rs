@@ -1,10 +1,7 @@
-use std::fs;
-use std::io::prelude::*;
-use std::path;
-
 use crate::bus::Bus;
 use crate::clock::Clock;
 use crate::cpu::Cpu;
+use crate::crc16::Crc16;
 use crate::error::Error;
 use crate::ram::Ram;
 use crate::rng::Rng;
@@ -50,7 +47,8 @@ const FONT_SPRITES: [[u8; 5]; 0x10] = [
 const SCREEN_SIZE: (usize, usize) = (64, 32);
 const PROGRAM_START: u16 = 0x0200;
 const FONT_OFFSET: u16 = 0x0000;
-const RNG_SEED: u16 = 0xcafe;
+const CPU_FREQUENCY: f32 = 500.0;
+const TIMER_FREQUENCY: f32 = 60.0;
 
 #[derive(Debug)]
 pub struct Chip8 {
@@ -67,6 +65,8 @@ pub struct Chip8 {
 
 impl<'a> Chip8 {
     pub fn new(freq: Option<f32>) -> Self {
+        let freq = freq.unwrap_or(CPU_FREQUENCY);
+
         let mut sorted_map: Vec<_> = PAD_MAPPINGS.into();
         sorted_map.sort_by_key(|mapping| mapping.1);
 
@@ -84,33 +84,31 @@ impl<'a> Chip8 {
             st: Default::default(),
             mapping,
             screen_size: SCREEN_SIZE,
-            clock_60htz: Clock::new(std::time::Duration::from_secs(1).div_f32(60.0)),
-            clock_cpu: Clock::new(std::time::Duration::from_secs(1).div_f32(500.0)),
+            clock_60htz: Clock::new(std::time::Duration::from_secs(1).div_f32(TIMER_FREQUENCY)),
+            clock_cpu: Clock::new(std::time::Duration::from_secs(1).div_f32(freq)),
         }
     }
 
-    pub fn load_rom<T>(&mut self, rom: T, seed: Option<u16>) -> Result<(), Error>
-    where
-        T: AsRef<path::Path>,
-    {
-        // TODO: Don't do IO here
-        let mut f = fs::File::open(rom)?;
-        let pc = PROGRAM_START;
+    pub fn load_rom(&mut self, rom: &[u8], seed: Option<u16>) -> Result<(), Error> {
         let ft = FONT_OFFSET;
-        let seed = seed.unwrap_or(RNG_SEED);
+        let pc = PROGRAM_START;
 
-        for (i, byte) in f.bytes().enumerate() {
-            let addr = pc.wrapping_add(i as u16);
-            self.ram.write(addr, byte?)?;
-        }
+        // Copy sprites in memory
+        FONT_SPRITES.iter().try_fold(ft, |addr, sprite| {
+            sprite.iter().copied().try_fold(addr, |addr, byte| {
+                self.ram.write(addr, byte)?;
+                Ok(addr.wrapping_add(1))
+            })
+        })?;
 
-        let mut addr = ft;
-        for sprite in FONT_SPRITES {
-            for (i, byte) in sprite.iter().enumerate() {
-                self.ram.write(addr, *byte)?;
-                addr = addr.wrapping_add(1);
-            }
-        }
+        // Copy ROM in memory
+        rom.iter().copied().try_fold(pc, |addr, byte| {
+            self.ram.write(addr, byte)?;
+            Ok(addr.wrapping_add(1))
+        })?;
+
+        // Derive seed from ROM if not provided
+        let seed = seed.unwrap_or(Crc16::at_once(rom));
 
         self.cpu.init(pc, ft);
         self.rng.seed(seed)?;
@@ -143,7 +141,6 @@ impl<'a> Chip8 {
             pad,
         };
 
-        // TODO: clock at correct frequency
         self.clock_cpu.tick(std::time::Instant::now(), || {
             self.cpu.cycle(&mut bus)?;
             Ok(())
