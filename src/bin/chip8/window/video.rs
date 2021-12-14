@@ -1,18 +1,18 @@
-use std::time::{Duration, Instant};
+use std::time;
 
 use sdl2::pixels::Color;
-use sdl2::render::WindowCanvas;
+use sdl2::render;
 use sdl2::Sdl;
 
 use crate::error;
 
 pub struct VideoEngine {
-    canvas: WindowCanvas,
+    canvas: render::WindowCanvas,
     buffer: Vec<bool>,
     width: usize,
     height: usize,
-    fps: Duration,
-    last: Option<Instant>,
+    fps: time::Duration,
+    last: Option<time::Instant>,
     bg: Color,
     fg: Color,
 }
@@ -29,8 +29,11 @@ impl VideoEngine {
     ) -> Result<Self, error::Error> {
         let video = sdl.video()?;
 
+        let window_width = Self::scale(width, scale)?;
+        let window_height = Self::scale(height, scale)?;
+
         let mut canvas = video
-            .window(title, Self::scale_size(width, scale)?, Self::scale_size(height, scale)?)
+            .window(title, window_width, window_height)
             .position_centered()
             .build()?
             .into_canvas()
@@ -40,11 +43,11 @@ impl VideoEngine {
 
         let buffer_sz = width
             .checked_mul(height)
-            .ok_or(error::Error::InvalidScreenSize((width, height)))?;
+            .ok_or(error::Error::ScreenTooLarge((width, height)))?;
 
-        let fps = Duration::from_secs(1)
+        let fps = time::Duration::from_secs(1)
             .checked_div(fps)
-            .ok_or(error::Error::InvalidFramerate(fps))?;
+            .ok_or(error::Error::InvalidFps(fps))?;
 
         Ok(Self {
             canvas,
@@ -58,7 +61,7 @@ impl VideoEngine {
         })
     }
 
-    pub fn render(&mut self, now: Instant) -> Result<(), error::Error> {
+    pub fn render(&mut self, now: time::Instant) -> Result<(), error::Error> {
         let render = match self.last {
             Some(prev) => now.duration_since(prev) >= self.fps,
             None => true,
@@ -95,9 +98,9 @@ impl VideoEngine {
         Ok(())
     }
 
-    fn scale_size(x: usize, scale: u8) -> Result<u32, error::Error> {
+    fn scale(x: usize, scale: u8) -> Result<u32, error::Error> {
         x.checked_mul(scale.into())
             .and_then(|x_scaled| x_scaled.try_into().ok())
-            .ok_or(error::Error::InvalidScale(x, scale))
+            .ok_or(error::Error::ScaleOverflow(x, scale))
     }
 }

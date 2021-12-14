@@ -88,20 +88,21 @@ impl Window {
     fn process_events(&mut self) -> bool {
         for event in self.events.poll_iter() {
             match event {
-                Event::Quit { .. } => {
-                    return false;
-                }
-                Event::KeyDown {
+                // Quit application
+                Event::Quit { .. }
+                | Event::KeyDown {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => {
                     return false;
                 }
+                // Key down
                 Event::KeyDown {
                     scancode: Some(key), ..
                 } => {
                     self.keyboard.key_down(&key);
                 }
+                // Key up
                 Event::KeyUp {
                     scancode: Some(key), ..
                 } => {

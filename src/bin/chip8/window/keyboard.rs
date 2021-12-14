@@ -22,14 +22,14 @@ impl KeyboardEngine {
     }
 
     pub fn key_down(&mut self, key: &Scancode) {
-        if let Some(idx) = self.map.get(key) {
-            self.buffer[*idx] = true;
+        if let Some(idx) = self.map.get(key).copied() {
+            self.buffer[idx] = true;
         }
     }
 
     pub fn key_up(&mut self, key: &Scancode) {
-        if let Some(idx) = self.map.get(key) {
-            self.buffer[*idx] = false;
+        if let Some(idx) = self.map.get(key).copied() {
+            self.buffer[idx] = false;
         }
     }
 

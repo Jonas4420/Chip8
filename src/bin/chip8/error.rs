@@ -3,9 +3,9 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum Error {
-    InvalidFramerate(u32),
-    InvalidScale(usize, u8),
-    InvalidScreenSize((usize, usize)),
+    InvalidFps(u32),
+    ScaleOverflow(usize, u8),
+    ScreenTooLarge((usize, usize)),
     Sdl(SdlError),
     UnknownMapping(char),
 }
@@ -20,9 +20,9 @@ pub enum SdlError {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::InvalidFramerate(fps) => write!(f, "invalid framerate of {} fps", fps),
-            Self::InvalidScale(x, scale) => write!(f, "cannot scale size of {} by {} times", x, scale),
-            Self::InvalidScreenSize(dim) => write!(f, "screen size of {}x{} cannot be created", dim.0, dim.1),
+            Self::InvalidFps(fps) => write!(f, "framerate of {} fps is invalid", fps),
+            Self::ScaleOverflow(x, scale) => write!(f, "cannot scale size of {} by {} times", x, scale),
+            Self::ScreenTooLarge(dim) => write!(f, "screen size of {}x{} cannot be created", dim.0, dim.1),
             Self::Sdl(err) => match err {
                 SdlError::IntegerOrError(err) => err.fmt(f),
                 SdlError::String(err) => err.fmt(f),

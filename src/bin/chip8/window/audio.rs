@@ -1,4 +1,4 @@
-use sdl2::audio::{AudioCallback, AudioDevice, AudioSpecDesired, AudioStatus};
+use sdl2::audio;
 use sdl2::Sdl;
 
 use crate::error;
@@ -6,7 +6,7 @@ use crate::error;
 pub const NOTE_PITCH: f32 = 440.0;
 
 pub struct AudioEngine {
-    audio: AudioDevice<SquareWave>,
+    audio: audio::AudioDevice<SquareWave>,
     beep: bool,
 }
 
@@ -20,7 +20,7 @@ impl AudioEngine {
     pub fn new(sdl: &Sdl) -> Result<Self, error::Error> {
         let audio = sdl.audio()?;
 
-        let spec = AudioSpecDesired {
+        let spec = audio::AudioSpecDesired {
             freq: Some(44100),
             channels: Some(1),
             samples: None,
@@ -50,24 +50,24 @@ impl AudioEngine {
     }
 
     fn play(&mut self) {
-        if let AudioStatus::Paused = self.audio.status() {
+        if let audio::AudioStatus::Paused = self.audio.status() {
             self.audio.resume();
         }
     }
 
     fn pause(&mut self) {
-        if let AudioStatus::Playing = self.audio.status() {
+        if let audio::AudioStatus::Playing = self.audio.status() {
             self.audio.pause();
         }
     }
 }
 
-impl AudioCallback for SquareWave {
+impl audio::AudioCallback for SquareWave {
     type Channel = f32;
 
     fn callback(&mut self, out: &mut [f32]) {
         for x in out.iter_mut() {
-            *x = if self.phase <= 0.5 { self.volume } else { -self.volume };
+            *x = self.volume * if self.phase <= 0.5 { 1.0 } else { -1.0 };
             self.phase = (self.phase + self.phase_inc) % 1.0;
         }
     }
