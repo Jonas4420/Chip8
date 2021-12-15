@@ -1,9 +1,10 @@
 use crate::bus::{Bus, IO};
-use crate::clock::Clock;
 use crate::cpu::Cpu;
-use crate::crc16::Crc16;
 use crate::error::Error;
 use crate::screen::Screen;
+
+mod clock;
+mod crc16;
 
 // TODO: rename
 const PAD_MAPPINGS: [(char, usize); 0x10] = [
@@ -55,8 +56,8 @@ pub struct Chip8 {
     bus: Bus,
     mapping: [char; PAD_MAPPINGS.len()],
     screen_size: (usize, usize),
-    clock_60htz: Clock,
-    clock_cpu: Clock,
+    clock_60htz: clock::Clock,
+    clock_cpu: clock::Clock,
 }
 
 impl Chip8 {
@@ -77,8 +78,8 @@ impl Chip8 {
             bus: Default::default(),
             mapping,
             screen_size: SCREEN_SIZE,
-            clock_60htz: Clock::new(std::time::Duration::from_secs(1).div_f32(TIMER_FREQUENCY)),
-            clock_cpu: Clock::new(std::time::Duration::from_secs(1).div_f32(freq)),
+            clock_60htz: clock::Clock::new(std::time::Duration::from_secs(1).div_f32(TIMER_FREQUENCY)),
+            clock_cpu: clock::Clock::new(std::time::Duration::from_secs(1).div_f32(freq)),
         }
     }
 
@@ -95,7 +96,7 @@ impl Chip8 {
         })?;
 
         // Copy ROM in memory
-        let mut crc = Crc16::start();
+        let mut crc = crc16::Crc16::start();
 
         rom.iter().copied().try_fold(pc, |addr, byte| {
             crc.update(byte);
@@ -115,27 +116,16 @@ impl Chip8 {
         Ok(())
     }
 
-    pub fn clock(&mut self, screen: &mut [bool], pad: &[bool], audio: &mut bool) -> Result<(), Error> {
-        if screen.len() != (self.screen_size.0 * self.screen_size.1) {
-            return Err(Error::InvalidScreenSize(
-                self.screen_size.0 * self.screen_size.1,
-                screen.len(),
-            ));
+    pub fn clock(&mut self, screen: &mut dyn Screen, pad: &[bool], audio: &mut bool) -> Result<(), Error> {
+        if screen.size() != self.screen_size {
+            return Err(Error::InvalidScreenSize(self.screen_size, screen.size()));
         }
 
         if pad.len() != self.mapping.len() {
             return Err(Error::InvalidPadSize(self.mapping.len(), pad.len()));
         }
 
-        let mut io = IO {
-            screen: Screen {
-                memory: screen,
-                width: self.screen_size.0,
-                height: self.screen_size.1,
-            },
-            pad,
-            audio,
-        };
+        let mut io = IO { screen, pad, audio };
 
         self.clock_cpu.tick(std::time::Instant::now(), || {
             self.cpu.cycle(&mut self.bus, &mut io)?;

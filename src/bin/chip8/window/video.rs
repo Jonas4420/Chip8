@@ -75,10 +75,6 @@ impl VideoEngine {
         Ok(())
     }
 
-    pub fn get_memory(&mut self) -> &mut [bool] {
-        &mut self.buffer
-    }
-
     fn update(&mut self) -> Result<(), error::Error> {
         self.canvas.set_draw_color(self.bg);
         self.canvas.clear();
@@ -102,5 +98,23 @@ impl VideoEngine {
         x.checked_mul(scale.into())
             .and_then(|x_scaled| x_scaled.try_into().ok())
             .ok_or(error::Error::ScaleOverflow(x, scale))
+    }
+}
+
+impl chip8::Screen for VideoEngine {
+    fn as_slice(&self) -> &[bool] {
+        &self.buffer
+    }
+
+    fn as_mut_slice(&mut self) -> &mut [bool] {
+        &mut self.buffer
+    }
+
+    fn get_width(&self) -> usize {
+        self.width
+    }
+
+    fn get_height(&self) -> usize {
+        self.height
     }
 }

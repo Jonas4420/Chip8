@@ -51,16 +51,12 @@ impl Window {
 
     pub fn run<F>(&mut self, mut f: F) -> Result<(), Box<dyn std::error::Error>>
     where
-        F: FnMut(&[bool], &mut [bool], &mut bool) -> Result<(), Box<dyn std::error::Error>>,
+        F: FnMut(&[bool], &mut dyn chip8::Screen, &mut bool) -> Result<(), Box<dyn std::error::Error>>,
     {
         self.display()?;
 
         while self.process_events() {
-            f(
-                self.keyboard.get_memory(),
-                self.video.get_memory(),
-                self.audio.get_memory(),
-            )?;
+            f(self.keyboard.get_memory(), &mut self.video, self.audio.get_memory())?;
 
             self.audio.render()?;
             self.video.render(Instant::now())?;

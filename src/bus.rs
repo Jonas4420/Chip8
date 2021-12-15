@@ -14,7 +14,7 @@ pub struct Bus {
 
 #[derive(Debug)]
 pub struct IO<'a> {
-    pub screen: screen::Screen<'a>,
+    pub screen: &'a mut dyn screen::Screen,
     pub pad: &'a [bool],
     pub audio: &'a mut bool,
 }

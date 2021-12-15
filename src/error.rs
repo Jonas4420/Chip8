@@ -2,7 +2,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum Error {
-    InvalidScreenSize(usize, usize),
+    InvalidScreenSize((usize, usize), (usize, usize)),
     InvalidPadSize(usize, usize),
     InvalidAddress(u16),
     UnknownOpcode([u8; 4]),

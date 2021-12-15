@@ -3,8 +3,8 @@ use crate::error::Error;
 
 type Result<T> = std::result::Result<T, Error>;
 
-const OPCODE_SIZE: u16 = 2;
 const FONT_SIZE: u16 = 5;
+const OPCODE_SIZE: u16 = 2;
 
 macro_rules! nnn {
     ($op: expr) => {
@@ -276,12 +276,16 @@ impl Cpu {
     }
 
     fn op_wait(&mut self, _bus: &mut Bus, io: &mut IO, x: usize) -> Result<ProgramCounter> {
-        if let Some(idx) = io.pad.iter().position(|&key| key) {
-            self.v[x] = idx as u8;
-            Ok(ProgramCounter::Next)
-        } else {
-            Ok(ProgramCounter::Wait)
-        }
+        let any_pressed = io
+            .pad
+            .iter()
+            .position(|&key| key)
+            .map(|idx| {
+                self.v[x] = idx as u8;
+            })
+            .is_some();
+
+        Ok(ProgramCounter::wait_if(!any_pressed))
     }
 
     fn op_set_dt(&mut self, bus: &mut Bus, _io: &mut IO, x: usize) -> Result<ProgramCounter> {
@@ -354,6 +358,14 @@ impl ProgramCounter {
     pub fn skip_if(cond: bool) -> Self {
         if cond {
             Self::Skip
+        } else {
+            Self::Next
+        }
+    }
+
+    pub fn wait_if(cond: bool) -> Self {
+        if cond {
+            Self::Wait
         } else {
             Self::Next
         }
