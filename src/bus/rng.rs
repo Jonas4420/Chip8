@@ -1,24 +1,16 @@
-use crate::error::Error;
-
 #[derive(Debug, Default)]
 pub struct Rng {
     state: u16,
 }
 
 impl Rng {
-    pub fn seed(&mut self, seed: u16) -> Result<(), Error> {
-        if seed == 0x0000 {
-            return Err(Error::RngSeedNul);
-        }
-
+    pub fn seed(&mut self, seed: u16) {
         self.state = seed;
 
         // Filter out first 16 bits, to not directly output the seed
         for _ in 0..16 {
             self.next();
         }
-
-        Ok(())
     }
 
     pub fn get_byte(&mut self) -> u8 {

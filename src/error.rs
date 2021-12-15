@@ -8,7 +8,6 @@ pub enum Error {
     UnknownOpcode([u8; 4]),
     PadAddressOutOfRange(u8),
     StackOverflow,
-    RngSeedNul,
 }
 
 impl fmt::Display for Error {
