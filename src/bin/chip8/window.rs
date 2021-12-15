@@ -51,12 +51,18 @@ impl Window {
 
     pub fn run<F>(&mut self, mut f: F) -> Result<(), Box<dyn std::error::Error>>
     where
-        F: FnMut(&[bool], &mut dyn chip8::Screen, &mut bool) -> Result<(), Box<dyn std::error::Error>>,
+        F: FnMut(&mut chip8::IO) -> Result<(), Box<dyn std::error::Error>>,
     {
         self.display()?;
 
         while self.process_events() {
-            f(self.keyboard.get_memory(), &mut self.video, self.audio.get_memory())?;
+            let mut io = chip8::IO {
+                pad: self.keyboard.get_memory(),
+                screen: &mut self.video,
+                audio: self.audio.get_memory(),
+            };
+
+            f(&mut io)?;
 
             self.audio.render()?;
             self.video.render(Instant::now())?;

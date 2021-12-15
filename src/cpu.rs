@@ -1,5 +1,6 @@
-use crate::bus::{Bus, IO};
+use crate::bus::Bus;
 use crate::error::Error;
+use crate::io::IO;
 
 type Result<T> = std::result::Result<T, Error>;
 

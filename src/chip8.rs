@@ -1,7 +1,7 @@
-use crate::bus::{Bus, IO};
+use crate::bus::Bus;
 use crate::cpu::Cpu;
 use crate::error::Error;
-use crate::screen::Screen;
+use crate::io::IO;
 
 mod clock;
 mod crc16;
@@ -116,19 +116,17 @@ impl Chip8 {
         Ok(())
     }
 
-    pub fn clock(&mut self, screen: &mut dyn Screen, pad: &[bool], audio: &mut bool) -> Result<(), Error> {
-        if screen.size() != self.screen_size {
-            return Err(Error::InvalidScreenSize(self.screen_size, screen.size()));
+    pub fn clock(&mut self, io: &mut IO) -> Result<(), Error> {
+        if io.screen.size() != self.screen_size {
+            return Err(Error::InvalidScreenSize(self.screen_size, io.screen.size()));
         }
 
-        if pad.len() != self.mapping.len() {
-            return Err(Error::InvalidPadSize(self.mapping.len(), pad.len()));
+        if io.pad.len() != self.mapping.len() {
+            return Err(Error::InvalidPadSize(self.mapping.len(), io.pad.len()));
         }
-
-        let mut io = IO { screen, pad, audio };
 
         self.clock_cpu.tick(std::time::Instant::now(), || {
-            self.cpu.cycle(&mut self.bus, &mut io)?;
+            self.cpu.cycle(&mut self.bus, io)?;
             Ok(())
         })?;
 
@@ -138,7 +136,7 @@ impl Chip8 {
             Ok(())
         })?;
 
-        *audio = self.bus.st.get() > 0;
+        *io.audio = self.bus.st.get() > 0;
 
         Ok(())
     }

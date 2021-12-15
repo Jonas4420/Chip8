@@ -25,8 +25,8 @@ fn try_main() -> Result<(), Box<dyn std::error::Error>> {
 
     chip8.load_rom(&rom, options.seed)?;
 
-    window.run(|pad, screen, audio| {
-        chip8.clock(screen, pad, audio)?;
+    window.run(|io| {
+        chip8.clock(io)?;
         Ok(())
     })?;
 

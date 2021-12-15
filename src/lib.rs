@@ -2,7 +2,8 @@ mod bus;
 mod chip8;
 mod cpu;
 mod error;
-mod screen;
+mod io;
 
 pub use chip8::Chip8;
-pub use screen::Screen;
+pub use io::Screen;
+pub use io::IO;
