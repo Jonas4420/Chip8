@@ -106,7 +106,7 @@ impl Cpu {
             [0xf, _, 0x3, 0x3] => self.op_bcd(bus, io, x!(opcode)),
             [0xf, _, 0x5, 0x5] => self.op_pusha(bus, io, x!(opcode)),
             [0xf, _, 0x6, 0x5] => self.op_popa(bus, io, x!(opcode)),
-            _ => Err(Error::UnknownOpcode(opcode)),
+            _ => Err(Error::UndefinedInstruction(opcode)),
         }?;
 
         self.pc = match pc {
@@ -259,7 +259,7 @@ impl Cpu {
         if (self.v[x] as usize) < io.pad.len() {
             Ok(ProgramCounter::skip_if(io.pad[self.v[x] as usize]))
         } else {
-            Err(Error::PadAddressOutOfRange(self.v[x]))
+            Err(Error::PadOutOfRange(self.v[x]))
         }
     }
 
@@ -267,7 +267,7 @@ impl Cpu {
         if (self.v[x] as usize) < io.pad.len() {
             Ok(ProgramCounter::skip_if(!io.pad[self.v[x] as usize]))
         } else {
-            Err(Error::PadAddressOutOfRange(self.v[x]))
+            Err(Error::PadOutOfRange(self.v[x]))
         }
     }
 

@@ -12,7 +12,7 @@ impl Ram {
         if (addr as usize) < self.memory.len() {
             Ok(self.memory[addr as usize])
         } else {
-            Err(Error::InvalidAddress(addr))
+            Err(Error::RamOutOfRange(addr))
         }
     }
 
@@ -21,7 +21,7 @@ impl Ram {
             self.memory[addr as usize] = byte;
             Ok(())
         } else {
-            Err(Error::InvalidAddress(addr))
+            Err(Error::RamOutOfRange(addr))
         }
     }
 }

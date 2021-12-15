@@ -120,11 +120,11 @@ impl Chip8 {
 
     pub fn clock(&mut self, io: &mut io::IO) -> Result<(), error::Error> {
         if io.screen.size() != self.screen_size {
-            return Err(error::Error::InvalidScreenSize(self.screen_size, io.screen.size()));
+            return Err(error::Error::InvalidScreenSize(io.screen.size(), self.screen_size));
         }
 
         if io.pad.len() != self.mapping.len() {
-            return Err(error::Error::InvalidPadSize(self.mapping.len(), io.pad.len()));
+            return Err(error::Error::InvalidPadSize(io.pad.len(), self.mapping.len()));
         }
 
         self.clock_cpu.tick(std::time::Instant::now(), || {

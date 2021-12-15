@@ -49,6 +49,14 @@ impl Window {
         })
     }
 
+    pub fn get_io(&mut self) -> chip8::IO {
+        chip8::IO {
+            pad: self.keyboard.get_memory(),
+            screen: &mut self.video,
+            audio: self.audio.get_memory(),
+        }
+    }
+
     pub fn run<F>(&mut self, mut f: F) -> Result<(), Box<dyn std::error::Error>>
     where
         F: FnMut(&mut chip8::IO) -> Result<(), Box<dyn std::error::Error>>,
@@ -56,13 +64,7 @@ impl Window {
         self.display()?;
 
         while self.process_events() {
-            let mut io = chip8::IO {
-                pad: self.keyboard.get_memory(),
-                screen: &mut self.video,
-                audio: self.audio.get_memory(),
-            };
-
-            f(&mut io)?;
+            f(&mut self.get_io())?;
 
             self.audio.render()?;
             self.video.render(Instant::now())?;
