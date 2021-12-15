@@ -21,7 +21,7 @@ fn try_main() -> Result<(), Box<dyn std::error::Error>> {
     let rom = std::fs::read(&options.rom)?;
 
     let mut chip8 = Chip8::new(options.freq);
-    let mut window = Window::new(chip8.get_screen_size(), chip8.get_mapping(), &options)?;
+    let mut window = Window::new(chip8.get_screen_size(), chip8.get_pad_map(), &options)?;
 
     chip8.load_rom(&rom, options.seed)?;
 

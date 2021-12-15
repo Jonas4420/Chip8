@@ -8,8 +8,8 @@ mod io;
 pub use io::Screen;
 pub use io::IO;
 
-// TODO: rename
-const PAD_MAPPINGS: [(char, usize); 0x10] = [
+// Pad and screen data
+const KEY_MAP: [(char, usize); 0x10] = [
     ('1', 0x1),
     ('2', 0x2),
     ('3', 0x3),
@@ -27,6 +27,16 @@ const PAD_MAPPINGS: [(char, usize); 0x10] = [
     ('c', 0xb),
     ('v', 0xf),
 ];
+const SCREEN_SIZE: (usize, usize) = (64, 32);
+
+// CHIP-8 default values
+const CPU_FREQUENCY: f32 = 500.0;
+const TIMER_FREQUENCY: f32 = 60.0;
+const FONT_START: u16 = 0x0000;
+const PROGRAM_START: u16 = 0x0200;
+const RNG_SEED: u16 = 0xcafe;
+
+// Pre-loaded sprites
 const FONT_SPRITES: [[u8; 5]; 0x10] = [
     [0b11110000, 0b10010000, 0b10010000, 0b10010000, 0b11110000],
     [0b00100000, 0b01100000, 0b00100000, 0b00100000, 0b01110000],
@@ -45,18 +55,12 @@ const FONT_SPRITES: [[u8; 5]; 0x10] = [
     [0b11110000, 0b10000000, 0b11110000, 0b10000000, 0b11110000],
     [0b11110000, 0b10000000, 0b11110000, 0b10000000, 0b10000000],
 ];
-const SCREEN_SIZE: (usize, usize) = (64, 32);
-const PROGRAM_START: u16 = 0x0200;
-const FONT_OFFSET: u16 = 0x0000;
-const CPU_FREQUENCY: f32 = 500.0;
-const TIMER_FREQUENCY: f32 = 60.0;
-const RNG_SEED: u16 = 0xcafe;
 
 #[derive(Debug)]
 pub struct Chip8 {
     cpu: cpu::Cpu,
     bus: bus::Bus,
-    mapping: [char; PAD_MAPPINGS.len()],
+    pad_map: [char; KEY_MAP.len()],
     screen_size: (usize, usize),
     clock_60htz: clock::Clock,
     clock_cpu: clock::Clock,
@@ -66,11 +70,11 @@ impl Chip8 {
     pub fn new(freq: Option<f32>) -> Self {
         let freq = freq.unwrap_or(CPU_FREQUENCY);
 
-        let mut sorted_map: Vec<_> = PAD_MAPPINGS.into();
-        sorted_map.sort_by_key(|mapping| mapping.1);
+        let mut sorted_map: Vec<_> = KEY_MAP.into();
+        sorted_map.sort_by_key(|map| map.1);
 
-        let mut mapping = [Default::default(); PAD_MAPPINGS.len()];
-        mapping
+        let mut pad_map = [Default::default(); KEY_MAP.len()];
+        pad_map
             .iter_mut()
             .zip(sorted_map.into_iter().map(|(key, _)| key))
             .for_each(|(dst, src)| *dst = src);
@@ -78,7 +82,7 @@ impl Chip8 {
         Self {
             cpu: Default::default(),
             bus: Default::default(),
-            mapping,
+            pad_map,
             screen_size: SCREEN_SIZE,
             clock_60htz: clock::Clock::new(std::time::Duration::from_secs(1).div_f32(TIMER_FREQUENCY)),
             clock_cpu: clock::Clock::new(std::time::Duration::from_secs(1).div_f32(freq)),
@@ -86,7 +90,7 @@ impl Chip8 {
     }
 
     pub fn load_rom(&mut self, rom: &[u8], seed: Option<u16>) -> Result<(), error::Error> {
-        let ft = FONT_OFFSET;
+        let ft = FONT_START;
         let pc = PROGRAM_START;
 
         // Copy sprites in memory
@@ -123,8 +127,8 @@ impl Chip8 {
             return Err(error::Error::InvalidScreenSize(io.screen.size(), self.screen_size));
         }
 
-        if io.pad.len() != self.mapping.len() {
-            return Err(error::Error::InvalidPadSize(io.pad.len(), self.mapping.len()));
+        if io.pad.len() != self.pad_map.len() {
+            return Err(error::Error::InvalidPadSize(io.pad.len(), self.pad_map.len()));
         }
 
         self.clock_cpu.tick(std::time::Instant::now(), || {
@@ -143,8 +147,8 @@ impl Chip8 {
         Ok(())
     }
 
-    pub fn get_mapping(&self) -> &[char] {
-        &self.mapping
+    pub fn get_pad_map(&self) -> &[char] {
+        &self.pad_map
     }
 
     pub fn get_screen_size(&self) -> (usize, usize) {
